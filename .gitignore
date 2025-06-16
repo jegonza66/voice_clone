@@ -1,0 +1,10 @@
+__pycache__
+.idea/
+DUMMY/
+dataset/
+logs/
+outputs/
+checkpoints/
+wavlm/WavLM-Base.pt
+wavlm/WavLM-Large.pt
+hifigan/generator_v1

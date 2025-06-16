@@ -1,0 +1,1 @@
+python convert.py --ptfile checkpoints/freevc.pth --txtpath convert.txt --outdir outputs/freevc
