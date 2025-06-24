@@ -25,6 +25,7 @@ if __name__ == "__main__":
     parser.add_argument("--txtpath", type=str, default="convert.txt", help="path to txt file")
     parser.add_argument("--outdir", type=str, default="output/freevc", help="path to output dir")
     parser.add_argument("--use_timestamp", default=False, action="store_true")
+    parser.add_argument("--saved_embedding", type=str, default=None, help="path to saved embedding (.npy or .pt)")
     args = parser.parse_args()
     
     os.makedirs(args.outdir, exist_ok=True)
@@ -41,32 +42,60 @@ if __name__ == "__main__":
 
     print("Loading WavLM for content...")
     cmodel = utils.get_cmodel(0)
-    
-    if hps.model.use_spk:
-        print("Loading speaker encoder...")
-        smodel = SpeakerEncoder('speaker_encoder/ckpt/pretrained_bak_5805000.pt')
-
+           
     print("Processing text...")
     titles, srcs, tgts = [], [], []
     with open(args.txtpath, "r") as f:
         for rawline in f.readlines():
-            _, src, tgt = rawline.strip().split("|")
+            src, tgt = rawline.strip().split("|")
             title = f"{src.split('/')[-1]}_{tgt.split('/')[-1]}"
             titles.append(title)
             srcs.append(src)
             tgts.append(tgt)
 
     print("Synthesizing...")
+    # Load saved embedding if provided
+    saved_g_tgt = None
+    if args.saved_embedding and hps.model.use_spk:
+        print(f"Loading saved embedding from {args.saved_embedding}")
+        if args.saved_embedding.endswith('.npy'):
+            import numpy as np
+            saved_g_tgt = torch.from_numpy(np.load(args.saved_embedding)).unsqueeze(0).to(device)
+        elif args.saved_embedding.endswith('.pt'):
+            saved_g_tgt = torch.load(args.saved_embedding).to(device)
+        
+        # Ensure the embedding has the correct shape: [batch_size, embedding_dim]
+        # Remove all extra dimensions first, then add batch dimension if needed
+        while saved_g_tgt.dim() > 2:
+            saved_g_tgt = saved_g_tgt.squeeze()
+            
+        if saved_g_tgt.dim() == 1:
+            saved_g_tgt = saved_g_tgt.unsqueeze(0)  # Add batch dimension
+        
+        print(f"Loaded embedding shape: {saved_g_tgt.shape}")
+    
+    
     with torch.no_grad():
         for line in tqdm(zip(titles, srcs, tgts)):
             title, src, tgt = line
-            # tgt
-            wav_tgt, _ = librosa.load(tgt, sr=hps.data.sampling_rate)
-            wav_tgt, _ = librosa.effects.trim(wav_tgt, top_db=20)
+            
             if hps.model.use_spk:
-                g_tgt = smodel.embed_utterance(wav_tgt)
-                g_tgt = torch.from_numpy(g_tgt).unsqueeze(0).to(device)
+                if saved_g_tgt is not None:
+                    # Use the saved embedding
+                    g_tgt = saved_g_tgt
+                else:
+                    print("Loading speaker encoder...")
+                    smodel = SpeakerEncoder('speaker_encoder/ckpt/pretrained_bak_5805000.pt')
+
+                    # Compute embedding from target audio (original behavior)
+                    wav_tgt, _ = librosa.load(tgt, sr=hps.data.sampling_rate)
+                    wav_tgt, _ = librosa.effects.trim(wav_tgt, top_db=20)
+                    g_tgt = smodel.embed_utterance(wav_tgt)
+                    g_tgt = torch.from_numpy(g_tgt).unsqueeze(0).to(device)
             else:
+            # Original mel spectrogram behavior
+                wav_tgt, _ = librosa.load(tgt, sr=hps.data.sampling_rate)
+                wav_tgt, _ = librosa.effects.trim(wav_tgt, top_db=20)
                 wav_tgt = torch.from_numpy(wav_tgt).unsqueeze(0).to(device)
                 mel_tgt = mel_spectrogram_torch(
                     wav_tgt, 
@@ -78,6 +107,7 @@ if __name__ == "__main__":
                     hps.data.mel_fmin,
                     hps.data.mel_fmax
                 )
+                
             # src
             wav_src, _ = librosa.load(src, sr=hps.data.sampling_rate)
             wav_src = torch.from_numpy(wav_src).unsqueeze(0).to(device)
