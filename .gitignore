@@ -4,6 +4,7 @@ DUMMY/
 dataset/
 logs/
 outputs/
+inference_audios/
 checkpoints/
 wavlm/WavLM-Base.pt
 wavlm/WavLM-Large.pt
