@@ -33,9 +33,9 @@ from losses import (
 from mel_processing import mel_spectrogram_torch, spec_to_mel_torch
 
 torch.backends.cudnn.benchmark = True
-global_step = 0
-#os.environ['TORCH_DISTRIBUTED_DEBUG'] = 'INFO'
 
+#os.environ['TORCH_DISTRIBUTED_DEBUG'] = 'INFO'
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def main():
   """Assume Single Node Multi GPUs Training Only"""
@@ -46,11 +46,12 @@ def main():
   os.environ['MASTER_ADDR'] = 'localhost'
   os.environ['MASTER_PORT'] = hps.train.port
 
-  mp.spawn(run, nprocs=n_gpus, args=(n_gpus, hps,))
+  run(0, 1, hps)
+  # mp.spawn(run, nprocs=n_gpus, args=(n_gpus, hps,))
 
 
 def run(rank, n_gpus, hps):
-  global global_step
+
   if rank == 0:
     logger = utils.get_logger(hps.model_dir)
     logger.info(hps)
@@ -58,7 +59,8 @@ def run(rank, n_gpus, hps):
     writer = SummaryWriter(log_dir=hps.model_dir)
     writer_eval = SummaryWriter(log_dir=os.path.join(hps.model_dir, "eval"))
 
-  dist.init_process_group(backend='nccl', init_method='env://', world_size=n_gpus, rank=rank)
+  if n_gpus > 1:
+      dist.init_process_group(backend='nccl', init_method='env://', world_size=n_gpus, rank=rank)
   torch.manual_seed(hps.train.seed)
   torch.cuda.set_device(rank)
 
@@ -71,11 +73,11 @@ def run(rank, n_gpus, hps):
       rank=rank,
       shuffle=True)
   collate_fn = TextAudioSpeakerCollate(hps)
-  train_loader = DataLoader(train_dataset, num_workers=8, shuffle=False, pin_memory=True,
+  train_loader = DataLoader(train_dataset, num_workers=0, shuffle=False, pin_memory=True,
       collate_fn=collate_fn, batch_sampler=train_sampler)
   if rank == 0:
     eval_dataset = TextAudioSpeakerLoader(hps.data.validation_files, hps)
-    eval_loader = DataLoader(eval_dataset, num_workers=8, shuffle=True,
+    eval_loader = DataLoader(eval_dataset, num_workers=0, shuffle=True,
         batch_size=hps.train.batch_size, pin_memory=False,
         drop_last=False, collate_fn=collate_fn)
 
@@ -94,16 +96,31 @@ def run(rank, n_gpus, hps):
       hps.train.learning_rate, 
       betas=hps.train.betas, 
       eps=hps.train.eps)
-  net_g = DDP(net_g, device_ids=[rank])#, find_unused_parameters=True)
-  net_d = DDP(net_d, device_ids=[rank])
+  if n_gpus > 1:
+      net_g = DDP(net_g, device_ids=[rank])
+  else:
+      net_g = net_g.to(device)
 
-  try:
-    _, _, _, epoch_str = utils.load_checkpoint(utils.latest_checkpoint_path(hps.model_dir, "G_*.pth"), net_g, optim_g)
-    _, _, _, epoch_str = utils.load_checkpoint(utils.latest_checkpoint_path(hps.model_dir, "D_*.pth"), net_d, optim_d)
-    global_step = (epoch_str - 1) * len(train_loader)
-  except:
-    epoch_str = 1
-    global_step = 0
+  if n_gpus > 1:
+      net_d = DDP(net_d, device_ids=[rank])
+  else:
+      net_d = net_d.to(device)
+
+  # try:
+  #   _, _, _, epoch_str = utils.load_checkpoint(utils.latest_checkpoint_path(hps.model_dir, "G_*.pth"), net_g, optim_g)
+  #   _, _, _, epoch_str = utils.load_checkpoint(utils.latest_checkpoint_path(hps.model_dir, "D_*.pth"), net_d, optim_d)
+  #   global_step = (epoch_str - 1) * len(train_loader)
+  # except:
+  #   epoch_str = 1
+  #   global_step = 0
+  
+  # Load pretrained models  
+  pretrained_g_path = "checkpoints/freevc.pth"  # ✅ Set your real path
+  pretrained_d_path = "checkpoints/D-freevc.pth"  # optional
+
+  _, _, _, _ = utils.load_checkpoint(pretrained_g_path, net_g, optim_g)
+  _, _, _, _ = utils.load_checkpoint(pretrained_d_path, net_d, optim_d)
+  epoch_str = 1
 
   scheduler_g = torch.optim.lr_scheduler.ExponentialLR(optim_g, gamma=hps.train.lr_decay, last_epoch=epoch_str-2)
   scheduler_d = torch.optim.lr_scheduler.ExponentialLR(optim_d, gamma=hps.train.lr_decay, last_epoch=epoch_str-2)
@@ -129,7 +146,6 @@ def train_and_evaluate(rank, epoch, hps, nets, optims, schedulers, scaler, loade
     writer, writer_eval = writers
 
   train_loader.batch_sampler.set_epoch(epoch)
-  global global_step
 
   net_g.train()
   net_d.train()
@@ -194,43 +210,43 @@ def train_and_evaluate(rank, epoch, hps, nets, optims, schedulers, scaler, loade
     scaler.step(optim_g)
     scaler.update()
 
-    if rank==0:
-      if global_step % hps.train.log_interval == 0:
-        lr = optim_g.param_groups[0]['lr']
-        losses = [loss_disc, loss_gen, loss_fm, loss_mel, loss_kl]
-        logger.info('Train Epoch: {} [{:.0f}%]'.format(
-          epoch,
-          100. * batch_idx / len(train_loader)))
-        logger.info([x.item() for x in losses] + [global_step, lr])
-        
-        scalar_dict = {"loss/g/total": loss_gen_all, "loss/d/total": loss_disc_all, "learning_rate": lr, "grad_norm_d": grad_norm_d, "grad_norm_g": grad_norm_g}
-        scalar_dict.update({"loss/g/fm": loss_fm, "loss/g/mel": loss_mel, "loss/g/kl": loss_kl})
-
-        scalar_dict.update({"loss/g/{}".format(i): v for i, v in enumerate(losses_gen)})
-        scalar_dict.update({"loss/d_r/{}".format(i): v for i, v in enumerate(losses_disc_r)})
-        scalar_dict.update({"loss/d_g/{}".format(i): v for i, v in enumerate(losses_disc_g)})
-        image_dict = { 
-            "slice/mel_org": utils.plot_spectrogram_to_numpy(y_mel[0].data.cpu().numpy()),
-            "slice/mel_gen": utils.plot_spectrogram_to_numpy(y_hat_mel[0].data.cpu().numpy()), 
-            "all/mel": utils.plot_spectrogram_to_numpy(mel[0].data.cpu().numpy()),
-        }
-        utils.summarize(
-          writer=writer,
-          global_step=global_step, 
-          images=image_dict,
-          scalars=scalar_dict)
-
-      if global_step % hps.train.eval_interval == 0:
-        evaluate(hps, net_g, eval_loader, writer_eval)
-        utils.save_checkpoint(net_g, optim_g, hps.train.learning_rate, epoch, os.path.join(hps.model_dir, "G_{}.pth".format(global_step)))
-        utils.save_checkpoint(net_d, optim_d, hps.train.learning_rate, epoch, os.path.join(hps.model_dir, "D_{}.pth".format(global_step)))
-    global_step += 1
-  
-  if rank == 0:
+  if rank==0:
     logger.info('====> Epoch: {}'.format(epoch))
+    if epoch % hps.train.log_interval == 0:
+      lr = optim_g.param_groups[0]['lr']
+      losses = [loss_disc, loss_gen, loss_fm, loss_mel, loss_kl]
+      logger.info('Train Epoch: {} [{:.0f}%]'.format(
+        epoch,
+        100. * batch_idx / len(train_loader)))
+      logger.info([x.item() for x in losses] + [epoch, lr])
+      
+      scalar_dict = {"loss/g/total": loss_gen_all, "loss/d/total": loss_disc_all, "learning_rate": lr, "grad_norm_d": grad_norm_d, "grad_norm_g": grad_norm_g}
+      scalar_dict.update({"loss/g/fm": loss_fm, "loss/g/mel": loss_mel, "loss/g/kl": loss_kl})
+
+      scalar_dict.update({"loss/g/{}".format(i): v for i, v in enumerate(losses_gen)})
+      scalar_dict.update({"loss/d_r/{}".format(i): v for i, v in enumerate(losses_disc_r)})
+      scalar_dict.update({"loss/d_g/{}".format(i): v for i, v in enumerate(losses_disc_g)})
+      image_dict = { 
+          "slice/mel_org": utils.plot_spectrogram_to_numpy(y_mel[0].data.cpu().numpy()),
+          "slice/mel_gen": utils.plot_spectrogram_to_numpy(y_hat_mel[0].data.cpu().numpy()), 
+          "all/mel": utils.plot_spectrogram_to_numpy(mel[0].data.cpu().numpy()),
+      }
+      utils.summarize(
+        writer=writer,
+        global_step=epoch, 
+        images=image_dict,
+        scalars=scalar_dict)
+
+    if epoch % hps.train.eval_interval == 0:
+      evaluate(hps, net_g, eval_loader, writer_eval, epoch)
+      utils.save_checkpoint(net_g, optim_g, hps.train.learning_rate, epoch, os.path.join(hps.model_dir, "G_{}.pth".format(epoch)))
+      utils.save_checkpoint(net_d, optim_d, hps.train.learning_rate, epoch, os.path.join(hps.model_dir, "D_{}.pth".format(epoch)))
+  
+    
 
  
-def evaluate(hps, generator, eval_loader, writer_eval):
+def evaluate(hps, generator, eval_loader, writer_eval, epoch):
+
     generator.eval()
     with torch.no_grad():
       for batch_idx, items in enumerate(eval_loader):
@@ -250,7 +266,10 @@ def evaluate(hps, generator, eval_loader, writer_eval):
         hps.data.sampling_rate,
         hps.data.mel_fmin, 
         hps.data.mel_fmax)
-      y_hat = generator.module.infer(c, g=g, mel=mel)
+      if hasattr(generator, 'module'):
+          y_hat = generator.module.infer(c, g=g, mel=mel)
+      else:
+          y_hat = generator.infer(c, g=g, mel=mel)
       
       y_hat_mel = mel_spectrogram_torch(
         y_hat.squeeze(1).float(),
@@ -272,7 +291,7 @@ def evaluate(hps, generator, eval_loader, writer_eval):
     }
     utils.summarize(
       writer=writer_eval,
-      global_step=global_step, 
+      global_step=epoch, 
       images=image_dict,
       audios=audio_dict,
       audio_sampling_rate=hps.data.sampling_rate
