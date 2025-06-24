@@ -1,1 +1,5 @@
-python convert.py --ptfile checkpoints/freevc.pth --txtpath convert.txt --outdir outputs/freevc
+# Train
+python train.py -c configs/freevc.json -m freevc
+
+# Inference
+python convert.py --ptfile logs/freevc/G_2000.pth --txtpath convert.txt --outdir outputs/freevc --saved_embedding spk_emb.pt

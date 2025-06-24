@@ -1,1 +1,1 @@
-foo|audios/Recording_joaco_2.wav|audios/messi_short.wav
+inference_audios/Amor.wav|inference_audios/messi_short.wav
