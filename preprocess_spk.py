@@ -41,16 +41,14 @@ def preprocess(in_dir, out_dir_root, spk, weights_fpath, num_workers):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--in_dir', type=str, 
-        default='dataset/vctk-16k/')
-    parser.add_argument('--num_workers', type=int, default=12)
+        default='dataset/messi')
+    parser.add_argument('--num_workers', type=int, default=1)
     parser.add_argument('--out_dir_root', type=str, 
-        default='dataset')
-    parser.add_argument('--spk_encoder_ckpt', type=str, \
+        default='dataset/messi')
+    parser.add_argument('--spk_encoder_ckpt', type=str,
         default='speaker_encoder/ckpt/pretrained_bak_5805000.pt')
 
     args = parser.parse_args()
-    
-    #split_list = ['train-clean-100', 'train-clean-360']
 
     sub_folder_list = os.listdir(args.in_dir)
     sub_folder_list.sort()
@@ -62,14 +60,11 @@ if __name__ == "__main__":
     print("[INFO] spk_embed_out_dir: ", spk_embed_out_dir)
     os.makedirs(spk_embed_out_dir, exist_ok=True)
 
-    #for data_split in split_list:
-    #    sub_folder_list = os.listdir(args.in_dir, data_split) 
     for spk in sub_folder_list:
-        print("Preprocessing {} ...".format(spk))
         in_dir = os.path.join(args.in_dir, spk)
-        if not os.path.isdir(in_dir): 
+        if not os.path.isdir(in_dir):
             continue
-        #out_dir = os.path.join(args.out_dir, spk)
+        print("Preprocessing {} ...".format(in_dir))
         preprocess(in_dir, spk_embed_out_dir, spk, args.spk_encoder_ckpt, args.num_workers)
     '''
     for data_split in split_list:
