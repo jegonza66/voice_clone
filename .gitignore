@@ -6,6 +6,7 @@ logs/
 outputs/
 inference_audios/
 checkpoints/
+credentials.py
 wavlm/WavLM-Base.pt
 wavlm/WavLM-Large.pt
 hifigan/generator_v1
