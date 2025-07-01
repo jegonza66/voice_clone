@@ -1,8 +1,11 @@
 __pycache__
 .idea/
+dist/
+build/
 DUMMY/
 dataset/
 logs/
+telegram_audios/
 outputs/
 inference_audios/
 checkpoints/
