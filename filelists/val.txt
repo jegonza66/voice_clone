@@ -1,4 +1,4 @@
-dataset/messi/wavs\messi_zidanne\target_066.wav
-dataset/messi/wavs\messi_infobae\target_027.wav
-dataset/messi/wavs\messi_zidanne\target_038.wav
-dataset/messi/wavs\messi_infobae\target_086.wav
+./dataset/messi/wavs\messi_infobae\target_062.wav
+./dataset/messi/wavs\messi_zidanne\target_028.wav
+./dataset/messi/wavs\messi_zidanne\target_063.wav
+./dataset/messi/wavs\messi_infobae\target_033.wav
