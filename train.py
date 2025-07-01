@@ -106,20 +106,16 @@ def run(rank, n_gpus, hps):
   else:
       net_d = net_d.to(device)
 
-  # try:
-  #   _, _, _, epoch_str = utils.load_checkpoint(utils.latest_checkpoint_path(hps.model_dir, "G_*.pth"), net_g, optim_g)
-  #   _, _, _, epoch_str = utils.load_checkpoint(utils.latest_checkpoint_path(hps.model_dir, "D_*.pth"), net_d, optim_d)
-  #   global_step = (epoch_str - 1) * len(train_loader)
-  # except:
-  #   epoch_str = 1
-  #   global_step = 0
-  
-  # Load pretrained models  
-  pretrained_g_path = "checkpoints/freevc.pth"  # ✅ Set your real path
-  pretrained_d_path = "checkpoints/D-freevc.pth"  # optional
+  try:
+    _, _, _, _ = utils.load_checkpoint(utils.latest_checkpoint_path(hps.model_dir, "G_*.pth"), net_g, optim_g)
+    _, _, _, _ = utils.load_checkpoint(utils.latest_checkpoint_path(hps.model_dir, "D_*.pth"), net_d, optim_d)
+  except:
+    # Load pretrained models
+    pretrained_g_path = "checkpoints/freevc.pth"
+    pretrained_d_path = "checkpoints/D-freevc.pth"
+    _, _, _, _ = utils.load_checkpoint(pretrained_g_path, net_g, optim_g)
+    _, _, _, _ = utils.load_checkpoint(pretrained_d_path, net_d, optim_d)
 
-  _, _, _, _ = utils.load_checkpoint(pretrained_g_path, net_g, optim_g)
-  _, _, _, _ = utils.load_checkpoint(pretrained_d_path, net_d, optim_d)
   epoch_str = 1
 
   scheduler_g = torch.optim.lr_scheduler.ExponentialLR(optim_g, gamma=hps.train.lr_decay, last_epoch=epoch_str-2)
