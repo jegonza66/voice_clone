@@ -13,3 +13,6 @@ credentials.py
 wavlm/WavLM-Base.pt
 wavlm/WavLM-Large.pt
 hifigan/generator_v1
+speaker_embeddings/
+training_audios/
+filelists/
