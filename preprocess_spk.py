@@ -27,7 +27,7 @@ def _compute_spkEmbed(out_dir, wav_path, weights_fpath):
     fpath = Path(wav_path)
     wav = preprocess_wav(fpath)
 
-    encoder = SpeakerEncoder(weights_fpath)
+    encoder = SpeakerEncoder(weights_fpath, verbose=False)
     embed = encoder.embed_utterance(wav)
     fname_save = os.path.join(out_dir, f"{utt_id}.npy")
     np.save(fname_save, embed, allow_pickle=False)
@@ -41,10 +41,10 @@ def preprocess(in_dir, out_dir_root, spk, weights_fpath, num_workers):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--in_dir', type=str, 
-        default='dataset/messi')
+        default='dataset/sr/messi/wavs')
     parser.add_argument('--num_workers', type=int, default=1)
     parser.add_argument('--out_dir_root', type=str, 
-        default='dataset/messi')
+        default='dataset/sr/messi')
     parser.add_argument('--spk_encoder_ckpt', type=str,
         default='speaker_encoder/ckpt/pretrained_bak_5805000.pt')
 
