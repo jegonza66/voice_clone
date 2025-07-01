@@ -7,12 +7,17 @@ save_dir = "dataset/messi/"
 os.makedirs(save_dir, exist_ok=True)
 segments_dir = "training_audios/segments/"
 
+durations = []
 # Walk through the directory
 for root, folder, files in os.walk(segments_dir):
     for file in files:
         print(root, folder, file)
         # Construct the relative path
         relative_path = os.path.relpath(os.path.join(root, file)).replace("\\", "/")  # Ensure forward slashes for compatibility
+        sampling_rate = librosa.get_samplerate(relative_path)
+        duration = librosa.get_duration(filename=relative_path, sr=sampling_rate)
+        durations.append(duration)
+
         # Downsample
         y, sr = librosa.load(relative_path, sr=16000)  # This loads and resamples audio to 16kHz
         # Define save path
