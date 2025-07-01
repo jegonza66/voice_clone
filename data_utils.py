@@ -75,16 +75,9 @@ class TextAudioSpeakerLoader(torch.utils.data.Dataset):
             c = torch.load(c_filename).squeeze(0)
         else:
             i = random.randint(68,92)
-            '''
-            basename = os.path.basename(filename)[:-4]
-            spkname = basename[:4]
-            #print(basename, spkname)
-            with h5py.File(f"dataset/rs/wavlm/{spkname}/{i}.hdf5","r") as f:
-                c = torch.from_numpy(f[basename][()]).squeeze(0)
-            #print(c)
-            '''
-            c_filename = filename.replace(".wav", f"_{i}.pt")
-            c_filename = c_filename.replace("DUMMY", "dataset/sr/wavlm")
+            # c_filename = filename.replace(".wav", f"_{i}.pt")
+            c_filename = filename.replace(".wav", f".pt")
+            c_filename = c_filename.replace("/wavs", "/wavlm")
             c = torch.load(c_filename).squeeze(0)
             
         # 2023.01.10 update: code below can deteriorate model performance
