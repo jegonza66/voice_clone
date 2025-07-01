@@ -29,7 +29,7 @@
     "win_length": 1280,
     "n_mel_channels": 80,
     "mel_fmin": 0.0,
-    "mel_fmax": null
+    "mel_fmax": 8000
   },
   "model": {
     "inter_channels": 192,
