@@ -2,4 +2,7 @@
 python train.py -c configs/freevc.json -m freevc
 
 # Inference
-python convert.py --ptfile logs/freevc/G_2000.pth --txtpath convert.txt --outdir outputs/freevc --saved_embedding spk_emb.pt
+python convert.py --ptfile logs/freevc/G_1000.pth --txtpath convert.txt --outdir outputs/freevc --saved_embedding speaker_embeddings/messi_emb.pt
+
+# SR augmentation
+python preprocess_sr.py --min 68 --max 92

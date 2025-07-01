@@ -1,1 +1,1 @@
-inference_audios/Amor.wav|inference_audios/messi_short.wav
+inference_audios/gus.wav|inference_audios/messi_short.wav
