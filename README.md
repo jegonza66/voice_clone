@@ -1,51 +1,86 @@
-# FreeVC: Towards High-Quality Text-Free One-Shot Voice Conversion
+# Voice Clone Bot 🎙️
 
-[![arXiv](https://img.shields.io/badge/arXiv-Paper-<COLOR>.svg)](https://arxiv.org/abs/2210.15418)
-[![githubio](https://img.shields.io/static/v1?message=Audio%20Samples&logo=Github&labelColor=grey&color=blue&logoColor=white&label=%20&style=flat)](https://olawod.github.io/FreeVC-demo/)
-![GitHub Repo stars](https://img.shields.io/github/stars/OlaWod/FreeVC)
-![GitHub](https://img.shields.io/github/license/OlaWod/FreeVC)
+A Telegram bot for voice cloning that serves as a wrapper around the [FreeVC](https://github.com/OlaWod/FreeVC) repository, which contains the voice model training and inference code.
 
-In this [paper](https://arxiv.org/abs/2210.15418), we adopt the end-to-end framework of [VITS](https://arxiv.org/abs/2106.06103) for high-quality waveform reconstruction, and propose strategies for clean content information extraction without text annotation. We disentangle content information by imposing an information bottleneck to [WavLM](https://arxiv.org/abs/2110.13900) features, and propose the **spectrogram-resize** based data augmentation to improve the purity of extracted content information.
+## About
 
-[🤗 Play online at HuggingFace Spaces](https://huggingface.co/spaces/OlaWod/FreeVC).
+This repository implements a user-friendly Telegram bot interface for voice conversion using the FreeVC model. FreeVC enables high-quality text-free one-shot voice conversion, allowing users to transform their voice to sound like different speakers.
 
-Visit our [demo page](https://olawod.github.io/FreeVC-demo) for audio samples.
+### Built on FreeVC Technology
 
-We also provide the [pretrained models](https://1drv.ms/u/s!AnvukVnlQ3ZTx1rjrOZ2abCwuBAh?e=UlhRR5).
+This bot leverages the [FreeVC](https://github.com/OlaWod/FreeVC) model, which:
+- Adopts the end-to-end framework of [VITS](https://arxiv.org/abs/2106.06103) for high-quality waveform reconstruction
+- Proposes strategies for clean content information extraction without text annotation
+- Uses information bottleneck techniques with [WavLM](https://arxiv.org/abs/2110.13900) features
+- Implements spectrogram-resize based data augmentation for improved content purity
 
-<table style="width:100%">
-  <tr>
-    <td><img src="./resources/train.png" alt="training" height="200"></td>
-    <td><img src="./resources/infer.png" alt="inference" height="200"></td>
-  </tr>
-  <tr>
-    <th>(a) Training</th>
-    <th>(b) Inference</th>
-  </tr>
-</table>
+For technical details, research paper, and audio samples, visit the [original FreeVC repository](https://github.com/OlaWod/FreeVC).
 
-## Updates
+## Features
 
-- Code release. (Nov 27, 2022)
-- Online demo at HuggingFace Spaces. (Dec 14, 2022)
-- Supports 24kHz outputs. See [here](https://github.com/OlaWod/FreeVC/tree/main/tips-for-synthesizing-24KHz-wavs-from-16kHz-wavs/) for details. (Dec 15, 2022)
-- Fix data loading bug. (Jan 10, 2023)
+- 🤖 **Telegram Bot Interface**: Easy-to-use bot for voice conversion
+- 🎵 **High-Quality Voice Conversion**: Powered by FreeVC's advanced neural networks
+- 🚀 **One-Shot Conversion**: No training required for new voices
+- 📱 **User-Friendly**: Simple audio upload and voice selection process
+- 🔄 **Multiple Voice Models**: Support for different target voices
 
-## Pre-requisites
+## How It Works
 
-1. Clone this repo: `git clone https://github.com/OlaWod/FreeVC.git`
+1. Send an audio file to the Telegram bot
+2. Select a target voice from available options
+3. Receive your transformed audio with the new voice
+4. The bot uses FreeVC's inference pipeline under the hood
 
-2. CD into this repo: `cd FreeVC`
+## Setup
 
-3. Install python requirements: `pip install -r requirements.txt`
+### Prerequisites
 
-4. Download [WavLM-Large](https://github.com/microsoft/unilm/tree/master/wavlm) and put it under directory 'wavlm/'
+1. **Clone this repository:**
+   ```bash
+   git clone https://github.com/jegonza66/voice_clone.git
+   cd voice_clone
+   ```
 
-5. Download the [VCTK](https://datashare.ed.ac.uk/handle/10283/3443) dataset (for training only)
+2. **Install Python dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-6. Download [HiFi-GAN model](https://github.com/jik876/hifi-gan) and put it under directory 'hifigan/' (for training with SR only)
+3. **Download required models:**
+   - Download [WavLM-Large](https://github.com/microsoft/unilm/tree/master/wavlm) and place it in the `wavlm/` directory
+   - Download pretrained FreeVC models from the [original repository](https://github.com/OlaWod/FreeVC)
 
-## Inference Example
+4. **Configure Telegram Bot:**
+   - Create a Telegram bot using [@BotFather](https://t.me/botfather)
+   - Create a `credentials.py` file with your bot token:
+     ```python
+     telegram_api_token = "YOUR_BOT_TOKEN_HERE"
+     ```
+
+5. **Prepare voice models:**
+   - Place speaker embeddings in the `speaker_embeddings/` directory
+   - Place model checkpoints in the `checkpoints/` directory
+   - Update the `AVAILABLE_VOICES` dictionary in `voice_clone_bot.py`
+
+### Running the Bot
+
+```bash
+python voice_clone_bot.py
+```
+
+## Bot Usage
+
+1. Start a conversation with your bot on Telegram
+2. Send `/start` to see the welcome message
+3. Send an audio file (voice message or audio file)
+4. Choose from available voice options
+5. Wait for processing and receive your transformed audio
+
+## Direct FreeVC Usage (Advanced)
+
+If you want to use the FreeVC model directly without the Telegram bot interface, you can use the original inference and training scripts:
+
+### Inference Example
 
 Download the pretrained checkpoints and run:
 
@@ -57,43 +92,32 @@ CUDA_VISIBLE_DEVICES=0 python convert.py --hpfile logs/freevc.json --ptfile chec
 CUDA_VISIBLE_DEVICES=0 python convert.py --hpfile logs/freevc-s.json --ptfile checkpoints/freevc-s.pth --txtpath convert.txt --outdir outputs/freevc-s
 ```
 
-## Training Example
+### Training Example
 
-1. Preprocess
+For training your own models, refer to the [original FreeVC repository](https://github.com/OlaWod/FreeVC) for detailed instructions on:
+- Data preprocessing
+- Training configuration
+- Model fine-tuning
 
-```python
-python downsample.py --in_dir </path/to/VCTK/wavs>
-ln -s dataset/vctk-16k DUMMY
+## Technical Details
 
-# run this if you want a different train-val-test split
-python preprocess_flist.py
+This repository includes the complete FreeVC implementation with:
+- Voice conversion models and training scripts
+- WavLM-based content extraction
+- HiFi-GAN vocoder integration
+- Spectrogram-resize data augmentation
+- Speaker embedding extraction
 
-# run this if you want to use pretrained speaker encoder
-CUDA_VISIBLE_DEVICES=0 python preprocess_spk.py
+## Credits and References
 
-# run this if you want to train without SR-based augmentation
-CUDA_VISIBLE_DEVICES=0 python preprocess_ssl.py
+This project is built upon the excellent work of:
 
-# run these if you want to train with SR-based augmentation
-CUDA_VISIBLE_DEVICES=1 python preprocess_sr.py --min 68 --max 72
-CUDA_VISIBLE_DEVICES=1 python preprocess_sr.py --min 73 --max 76
-CUDA_VISIBLE_DEVICES=2 python preprocess_sr.py --min 77 --max 80
-CUDA_VISIBLE_DEVICES=2 python preprocess_sr.py --min 81 --max 84
-CUDA_VISIBLE_DEVICES=3 python preprocess_sr.py --min 85 --max 88
-CUDA_VISIBLE_DEVICES=3 python preprocess_sr.py --min 89 --max 92
-```
+**FreeVC**: [Towards High-Quality Text-Free One-Shot Voice Conversion](https://arxiv.org/abs/2210.15418)
+- Original repository: https://github.com/OlaWod/FreeVC
+- Paper: https://arxiv.org/abs/2210.15418
+- Demo: https://olawod.github.io/FreeVC-demo/
 
-2. Train
-
-```python
-# train freevc
-CUDA_VISIBLE_DEVICES=0 python train.py -c configs/freevc.json -m freevc
-
-# train freevc-s
-CUDA_VISIBLE_DEVICES=2 python train.py -c configs/freevc-s.json -m freevc-s
-```
-
-## References
+### Referenced Projects
 
 - https://github.com/jaywalnut310/vits
 - https://github.com/microsoft/unilm/tree/master/wavlm
