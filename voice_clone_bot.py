@@ -5,6 +5,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQu
 from credentials import telegram_api_token
 import asyncio
 import hashlib
+import logging
 
 
 # Directory paths
@@ -155,11 +156,18 @@ def main():
     try:
         asyncio.run(application.run_polling())
     except RuntimeError as e:
-        if str(e) == "Event loop is closed":
+        if "Event loop is closed" in str(e):
             # Recreate the event loop if it is closed
+            logging.warning("Event loop was closed. Recreating loop...")
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             loop.run_until_complete(application.run_polling())
+        else:
+            logging.error(f"RuntimeError: {e}. Restarting main loop in 10s.")
+            asyncio.run(asyncio.sleep(10))
+    except Exception as e:
+        logging.error(f"Main loop crashed: {e}. Restarting in 10s.")
+        asyncio.run(asyncio.sleep(10))
 
 if __name__ == "__main__":
     main()
