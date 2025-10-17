@@ -7,6 +7,13 @@ import asyncio
 import hashlib
 import logging
 
+# Configure logging
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
+logger = logging.getLogger(__name__)
+
 
 # Directory paths
 INPUT_DIR = "telegram_audios/input"
@@ -37,7 +44,9 @@ async def handle_text(update: Update, context):
         await update.message.reply_text("Send me an audio file, and I'll transform the voice for you!")
     except error.Forbidden:
         # Handle the case where the bot is blocked by the user
-        print(f"Bot was blocked by the user: {update.message.from_user.id}")
+        logger.warning(f"Bot was blocked by the user: {update.message.from_user.id}")
+    except Exception as e:
+        logger.error(f"Error in handle_text: {e}")
 
 
 # Handle audio files
@@ -88,7 +97,10 @@ async def handle_voice_selection(update: Update, context):
         # Respond to the callback query immediately with a cache time
         await query.answer(cache_time=10)  # Cache the response for 10 seconds to avoid repeated errors
     except error.BadRequest as e:
-        print(f"Failed to answer callback query: {e}")
+        logger.warning(f"Failed to answer callback query: {e}")
+        return
+    except Exception as e:
+        logger.error(f"Error answering callback query: {e}")
         return
 
     # Retrieve the original data using the hash
@@ -118,7 +130,7 @@ async def handle_voice_selection(update: Update, context):
                 ],
                 check=True
             )
-            print('Voice transformation completed successfully.')
+            logger.info('Voice transformation completed successfully.')
 
             # Check if the message content is different before editing
             current_message = query.message.text
@@ -130,44 +142,75 @@ async def handle_voice_selection(update: Update, context):
             with open(output_path, "rb") as audio_file:
                 # await query.message.reply_audio(audio_file)
                 await query.message.reply_voice(audio_file)
-        except subprocess.CalledProcessError:
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Conversion error: {e}")
             await query.edit_message_text("An error occurred during voice transformation.")
-        except FileNotFoundError:
+        except FileNotFoundError as e:
+            logger.error(f"Output file not found: {e}")
             await query.edit_message_text("Output file not found. Please check the conversion script.")
+        except Exception as e:
+            logger.error(f"Unexpected error in run_conversion: {e}")
+            try:
+                await query.edit_message_text("An unexpected error occurred. Please try again.")
+            except:
+                pass
 
     asyncio.create_task(run_conversion())
 
 
+# Error handler for the application
+async def error_handler(update: object, context) -> None:
+    """Log errors caused by updates."""
+    logger.error(f"Exception while handling an update: {context.error}", exc_info=context.error)
+
+    # Try to inform the user about the error
+    if isinstance(update, Update) and update.effective_message:
+        try:
+            await update.effective_message.reply_text(
+                "Sorry, an error occurred while processing your request. Please try again later."
+            )
+        except Exception as e:
+            logger.error(f"Failed to send error message to user: {e}")
+
+
 # Main function
 def main():
+    logger.info('Starting Voice Clone bot...')
 
-    print('Voice Clone bot is up!')
+    while True:
+        try:
+            # Create the application
+            application = Application.builder().token(telegram_api_token).build()
 
-    # Create the application
-    application = Application.builder().token(telegram_api_token).build()
+            # Add handlers
+            application.add_handler(CommandHandler("start", start))
+            application.add_handler(MessageHandler(filters.TEXT, handle_text))  # Respond to text messages
+            application.add_handler(MessageHandler(filters.VOICE | filters.AUDIO, handle_audio))
+            application.add_handler(CallbackQueryHandler(handle_voice_selection))
 
-    # Add handlers
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(MessageHandler(filters.TEXT, handle_text))  # Respond to text messages
-    application.add_handler(MessageHandler(filters.VOICE | filters.AUDIO, handle_audio))
-    application.add_handler(CallbackQueryHandler(handle_voice_selection))
+            # Add error handler
+            application.add_error_handler(error_handler)
 
-    # Run the bot with proper event loop handling
-    try:
-        asyncio.run(application.run_polling())
-    except RuntimeError as e:
-        if "Event loop is closed" in str(e):
-            # Recreate the event loop if it is closed
-            logging.warning("Event loop was closed. Recreating loop...")
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            loop.run_until_complete(application.run_polling())
-        else:
-            logging.error(f"RuntimeError: {e}. Restarting main loop in 10s.")
-            asyncio.run(asyncio.sleep(10))
-    except Exception as e:
-        logging.error(f"Main loop crashed: {e}. Restarting in 10s.")
-        asyncio.run(asyncio.sleep(10))
+            logger.info('Voice Clone bot is up!')
+
+            # Run the bot with proper event loop handling
+            application.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
+
+            # If we reach here, the bot stopped gracefully
+            logger.info("Bot stopped gracefully.")
+            break
+
+        except KeyboardInterrupt:
+            logger.info("Bot stopped by user.")
+            break
+        except Exception as e:
+            logger.error(f"Bot crashed with error: {e}. Restarting in 10 seconds...", exc_info=True)
+            try:
+                asyncio.run(asyncio.sleep(10))
+            except:
+                import time
+                time.sleep(10)
+            logger.info("Attempting to restart bot...")
 
 if __name__ == "__main__":
     main()
