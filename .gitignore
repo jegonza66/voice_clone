@@ -16,3 +16,4 @@ hifigan/generator_v1
 speaker_embeddings/
 training_audios/
 filelists/
+bot_runner.bat

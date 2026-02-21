@@ -15,9 +15,10 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-# Directory paths
-INPUT_DIR = "telegram_audios/input"
-OUTPUT_DIR = "telegram_audios/output"
+# Directory paths (absolute, based on script location)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+INPUT_DIR = os.path.join(BASE_DIR, "telegram_audios", "input")
+OUTPUT_DIR = os.path.join(BASE_DIR, "telegram_audios", "output")
 os.makedirs(INPUT_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
@@ -30,8 +31,8 @@ WELCOME_MESSAGE = (
 # List of available voices with speaker embeddings and model checkpoints
 AVAILABLE_VOICES = {
     "Messi": {
-        "embedding": "speaker_embeddings/messi_emb.pt",
-        "checkpoint": "checkpoints/messi/G_1000.pth"
+        "embedding": os.path.join(BASE_DIR, "speaker_embeddings", "messi_emb.pt"),
+        "checkpoint": os.path.join(BASE_DIR, "checkpoints", "messi", "G_1000.pth")
     }
 }
 # Start command
@@ -122,13 +123,14 @@ async def handle_voice_selection(update: Update, context):
         try:
             subprocess.run(
                 [
-                    "python", "convert.py",
+                    "python", os.path.join(BASE_DIR, "convert.py"),
                     "--ptfile", checkpoint_path,
                     "--outdir", user_output_dir,
                     "--input_audio", input_path,
                     "--saved_embedding", embedding_path
                 ],
-                check=True
+                check=True,
+                cwd=BASE_DIR
             )
             logger.info('Voice transformation completed successfully.')
 
